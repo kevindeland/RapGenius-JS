@@ -1,7 +1,8 @@
 var superAgent = require("superagent"),
   RapSongParser = require("./parsers/SongsParser"),
   RapArtistParser = require("./parsers/ArtistParser"),
-  RapLyricsParser = require("./parsers/LyricsParser")
+  RapLyricsParser = require("./parsers/LyricsParser"),
+  SimpleLyricsParser = require("./parsers/SimpleLyricsParser"),
   Constants = require("./constants/Constants");
 
 var RAP_GENIUS_URL = "http://genius.com";
@@ -98,6 +99,35 @@ function searchSongLyrics(link, type, callback){
     });
 }
 
+function searchSimpleSongLyrics(link, type, callback){
+  //Check whether the URL is fully defined or relative
+  type = type.toLowerCase();
+  var type2Urls = Constants.Type2URLs[ type];
+  if (!type2Urls){
+    process.nextTick(function(){
+      callback("Unrecognized type in song lyrics search [type=" + type + "]");
+    });
+    return;
+  }
+
+  var url = /^http/.test(link) ? link : type2Urls.base_url + link;
+  superAgent.get(url)
+    .set("Accept", "text/html")
+    .end(function(res){
+      if(res.ok){
+        var result = SimpleLyricsParser.parseLyricsHTML(res.text, type);
+        if(result instanceof  Error){
+          return callback(result);
+        }else{
+          return callback(null, result);
+        }
+      }else{
+        console.log("An error occurred while trying to access lyrics[url=%s, status=%s]", url, res.status);
+        return callback(new Error("Unable to access the page for lyrics [url=" + link + "]"));
+      }
+    });
+}
+
 function searchLyricsExplanation(songId, type, callback){
   //Check whether the URL is fully defined or relative
 
@@ -155,3 +185,5 @@ module.exports.searchArtist = searchArtist;
 module.exports.searchSongLyrics = searchSongLyrics;
 module.exports.searchLyricsExplanation = searchLyricsExplanation;
 module.exports.searchLyricsAndExplanations = searchLyricsAndExplanations;
+
+module.exports.searchSimpleSongLyrics = searchSimpleSongLyrics;
